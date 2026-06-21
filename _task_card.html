@@ -1,0 +1,61 @@
+{% set is_done = task.id in done_task_ids %}
+<div class="task-card {% if is_done %}task-card--done{% endif %} task-card--{{ task.difficulty }}"
+     id="taskcard_{{ task.id }}">
+
+  <!-- header -->
+  <div class="task-card__head">
+    <div class="task-card__meta">
+      <span class="task-card__diff diff--{{ task.difficulty }}">
+        {% if task.difficulty == "latwe" %}⭐ Łatwe
+        {% elif task.difficulty == "srednie" %}⭐⭐ Średnie
+        {% else %}⭐⭐⭐ Trudne{% endif %}
+      </span>
+    </div>
+    {% if is_done %}<span class="task-card__done-badge" style="color:{{ color }}">✓ Zaliczone</span>{% endif %}
+  </div>
+
+  <!-- question -->
+  <p class="task-card__question">{{ task.question }}</p>
+
+  <!-- answer area -->
+  {% if task.type == "choice" %}
+  <div class="task-card__choices">
+    {% for ch_opt in task.choices %}
+    <label class="choice-opt {% if is_done and ch_opt.key == task.answer %}choice-opt--correct{% endif %}"
+           style="{% if is_done and ch_opt.key == task.answer %}border-color: {{ color }}; background: {{ color }}18;{% endif %}">
+      <input type="radio" name="choice_{{ task.id }}" value="{{ ch_opt.key }}"
+             {% if is_done %}disabled{% endif %}>
+      <span class="choice-opt__key">{{ ch_opt.key }}</span>
+      <span class="choice-opt__text">{{ ch_opt.text }}</span>
+    </label>
+    {% endfor %}
+  </div>
+
+  {% else %}
+  <div class="task-card__input-row">
+    <input type="text" id="input_{{ task.id }}"
+           class="task-input"
+           placeholder="Twoja odpowiedź..."
+           {% if is_done %}disabled{% endif %}>
+  </div>
+  {% endif %}
+
+  <!-- feedback -->
+  <div id="feedback_{{ task.id }}" class="task-feedback" hidden></div>
+
+  <!-- actions -->
+  <div class="task-card__actions">
+    <button class="task-submit-btn" style="background: {{ color }}20; color: {{ color }}; border-color: {{ color }}40;"
+            onclick="submitAnswer('{{ task.id }}', '{{ task.type }}')"
+            {% if is_done %}disabled{% endif %}>
+      {% if is_done %}✓ Odpowiedziano{% else %}Sprawdź →{% endif %}
+    </button>
+    <button class="task-hint-btn" onclick="toggleHint('{{ task.id }}')">💬 Wskazówka</button>
+  </div>
+
+  <!-- hint (hidden) -->
+  <div id="hint_{{ task.id }}" class="task-hint" hidden>
+    {{ task.hint }}
+  </div>
+
+</div>

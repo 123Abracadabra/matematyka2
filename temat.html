@@ -1,0 +1,369 @@
+{% extends "base.html" %}
+{% block title %}{{ topic }} · {{ ch.label }} · Matematyczna Wolność{% endblock %}
+
+{% block content %}
+{% set color = ch.color %}
+
+<div class="topic-page-header" id="topicHeader" style="--tp-color: {{ color }}">
+  <div class="container">
+    <a href="{{ url_for('chapters.dzial', chapter_id=ch.id) }}" class="back-btn">
+      ← {{ ch.emoji }} {{ ch.label }}
+    </a>
+
+    <div class="topic-page-header__top">
+      <h1 class="topic-page-header__title">{{ topic }}</h1>
+      <!-- CROWNS — updated by JS per level -->
+      <div class="topic-crowns" id="topicCrowns"></div>
+    </div>
+
+    <!-- LEVEL SWITCHER -->
+    <div class="level-switcher level-switcher--inline">
+      <button class="ls-btn ls-btn--base" id="btnBase" onclick="setLevel('base')">📗 Podstawa</button>
+      <button class="ls-btn ls-btn--ext"  id="btnExt"  onclick="setLevel('ext')">☠️ Rozszerzenie</button>
+    </div>
+
+    <!-- practice progress -->
+    <div class="tp-progress">
+      <div class="tp-progress__bar-wrap">
+        <div class="tp-progress__fill" id="topicProgressBar"
+             style="width:{{ pct }}%; background: linear-gradient(90deg,{{ color }},#a78bfa)"></div>
+      </div>
+      <span class="tp-progress__label" style="color:{{ color }}">
+        <span id="topicDoneCount">{{ done_count }}</span>/{{ total }} ćwiczeń
+      </span>
+    </div>
+  </div>
+</div>
+
+<section class="section" id="topicBody">
+  <div class="container container--narrow">
+
+    <!-- TEST LAUNCH BASE -->
+    <div id="testLaunchBase">
+      {% if topic_done_base %}
+      <div class="test-launch test-launch--passed">
+        <div class="test-launch__status">
+          <span class="test-launch__icon">🏆</span>
+          <div>
+            <div class="test-launch__title" style="color:{{ color }}">Podstawa zaliczona!</div>
+            <div class="test-launch__sub" id="crownDisplayBase">
+              {% for i in range(3) %}<span style="{% if crowns_base > i %}color:{{ color }};{% else %}opacity:.3;{% endif %}">👑</span>{% endfor %}
+            </div>
+          </div>
+        </div>
+        <a href="{{ url_for('chapters.test', chapter_id=ch.id, topic_slug=topic_slug) }}?level=base"
+           class="test-btn test-btn--retry" style="border-color:{{ color }}40;color:{{ color }}">Powtórz →</a>
+      </div>
+      {% elif cooldown_base > 0 %}
+      <div class="test-launch">
+        <div class="test-launch__status">
+          <span class="test-launch__icon">⏳</span>
+          <div>
+            <div class="test-launch__title">Test podstawy zablokowany</div>
+            <div class="test-launch__sub">Następna próba za <strong id="cdBase">--:--</strong></div>
+          </div>
+        </div>
+        <button class="test-btn test-btn--locked" disabled>Zablokowany</button>
+      </div>
+      {% else %}
+      <div class="test-launch">
+        <div class="test-launch__status">
+          <span class="test-launch__icon">📗</span>
+          <div>
+            <div class="test-launch__title">Test podstawy</div>
+            <div class="test-launch__sub">5 zadań · 3 min · min. 3/5 żeby zdać</div>
+          </div>
+        </div>
+        <a href="{{ url_for('chapters.test', chapter_id=ch.id, topic_slug=topic_slug) }}?level=base"
+           class="test-btn test-btn--start" style="background:linear-gradient(135deg,{{ color }},#a78bfa)">
+          Rozpocznij 🚀
+        </a>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- TEST LAUNCH EXT -->
+    <div id="testLaunchExt" style="margin-top:10px">
+      {% if topic_done_ext %}
+      <div class="test-launch test-launch--passed test-launch--ext-done">
+        <div class="test-launch__status">
+          <span class="test-launch__icon">🏆</span>
+          <div>
+            <div class="test-launch__title" style="color:#f87171">Rozszerzenie zaliczone!</div>
+            <div class="test-launch__sub" id="crownDisplayExt">
+              {% for i in range(3) %}<span style="{% if crowns_ext > i %}color:#f87171;{% else %}opacity:.3;{% endif %}">👑</span>{% endfor %}
+            </div>
+          </div>
+        </div>
+        <a href="{{ url_for('chapters.test', chapter_id=ch.id, topic_slug=topic_slug) }}?level=ext"
+           class="test-btn test-btn--retry" style="border-color:#f8717140;color:#f87171">Powtórz →</a>
+      </div>
+      {% elif cooldown_ext > 0 %}
+      <div class="test-launch test-launch--ext">
+        <div class="test-launch__status">
+          <span class="test-launch__icon">⏳</span>
+          <div>
+            <div class="test-launch__title">Test rozszerzenia zablokowany</div>
+            <div class="test-launch__sub">Następna próba za <strong id="cdExt">--:--</strong></div>
+          </div>
+        </div>
+        <button class="test-btn test-btn--locked" disabled>Zablokowany</button>
+      </div>
+      {% else %}
+      <div class="test-launch test-launch--ext">
+        <div class="test-launch__status">
+          <span class="test-launch__icon">☠️</span>
+          <div>
+            <div class="test-launch__title">Test rozszerzenia</div>
+            <div class="test-launch__sub">5 zadań trudnych · 3 min · min. 3/5</div>
+          </div>
+        </div>
+        <a href="{{ url_for('chapters.test', chapter_id=ch.id, topic_slug=topic_slug) }}?level=ext"
+           class="test-btn test-btn--start test-btn--ext"
+           style="background:linear-gradient(135deg,#7f1d1d,#dc2626)">
+          Rozpocznij ☠️
+        </a>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- THEORY PANELS -->
+    <div class="theory-panel theory-panel--base" id="theoryBase">
+      <div class="theory-panel__header">
+        <span class="theory-panel__icon">📗</span>
+        <span class="theory-panel__title">Teoria – Podstawa</span>
+        <button class="theory-panel__toggle" onclick="toggleTheory('Base')" id="theoryBaseToggle">Rozwiń ▼</button>
+      </div>
+      <div class="theory-panel__body" id="theoryBaseBody" hidden>
+        <div class="theory-content">{{ theory_base | replace('\n','<br>') | safe }}</div>
+      </div>
+    </div>
+
+    <div class="theory-panel theory-panel--ext" id="theoryExt" hidden>
+      <div class="theory-panel__header">
+        <span class="theory-panel__icon">☠️</span>
+        <span class="theory-panel__title">Teoria – Rozszerzenie</span>
+        <button class="theory-panel__toggle theory-panel__toggle--ext" onclick="toggleTheory('Ext')" id="theoryExtToggle">Rozwiń ▼</button>
+      </div>
+      <div class="theory-panel__body" id="theoryExtBody" hidden>
+        <div class="theory-content theory-content--ext">{{ theory_ext | replace('\n','<br>') | safe }}</div>
+      </div>
+    </div>
+
+    <!-- VIDEO PANELS -->
+    <div id="videoPanelBase">
+      {% if video_base %}
+      <div class="video-panel video-panel--base">
+        <div class="video-panel__header"><span>▶️</span><span class="video-panel__title">Film – Podstawa</span></div>
+        <div class="video-panel__embed">
+          <iframe src="{{ video_base }}" allowfullscreen loading="lazy"></iframe>
+        </div>
+      </div>
+      {% else %}
+      <div class="video-panel video-panel--base video-panel--empty">
+        <div class="video-panel__header"><span>▶️</span><span class="video-panel__title">Film – Podstawa</span></div>
+        <div class="video-panel__placeholder"><span class="video-panel__ph-icon">🎬</span><p>Film w przygotowaniu</p></div>
+      </div>
+      {% endif %}
+    </div>
+
+    <div id="videoPanelExt" hidden>
+      {% if video_ext %}
+      <div class="video-panel video-panel--ext">
+        <div class="video-panel__header video-panel__header--ext"><span>▶️</span><span class="video-panel__title">Film – Rozszerzenie</span></div>
+        <div class="video-panel__embed">
+          <iframe src="{{ video_ext }}" allowfullscreen loading="lazy"></iframe>
+        </div>
+      </div>
+      {% else %}
+      <div class="video-panel video-panel--ext video-panel--empty">
+        <div class="video-panel__header video-panel__header--ext"><span>▶️</span><span class="video-panel__title">Film – Rozszerzenie</span></div>
+        <div class="video-panel__placeholder video-panel__placeholder--ext"><span class="video-panel__ph-icon">🎬</span><p>Film w przygotowaniu</p></div>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- TASK GROUPS -->
+    <h2 class="tg-heading" id="tasksHeading">Ćwiczenia</h2>
+
+    <div id="groupBase">
+      {% set base_tasks = tasks | selectattr("level","equalto","podstawa") | list %}
+      {% if base_tasks %}
+      <div class="tg">
+        <div class="tg__header tg__header--base">
+          <span class="tg__icon">📗</span><span class="tg__title">Podstawa</span>
+          <span class="tg__pill tg__pill--easy">Łatwe / Średnie</span>
+        </div>
+        <div class="tg__list">{% for task in base_tasks %}{% include "_task_card.html" %}{% endfor %}</div>
+      </div>
+      {% else %}
+      <p class="tg-empty">Brak zadań podstawowych 🔧</p>
+      {% endif %}
+    </div>
+
+    <div id="groupExt" hidden>
+      {% set ext_tasks = tasks | selectattr("level","equalto","rozszerzenie") | list %}
+      {% if ext_tasks %}
+      <div class="tg tg--ext">
+        <div class="tg__header tg__header--ext-hostile">
+          <span class="tg__icon">☠️</span><span class="tg__title">Rozszerzenie</span>
+          <span class="tg__pill tg__pill--hard">Trudne</span>
+        </div>
+        <div class="tg__list">{% for task in ext_tasks %}{% include "_task_card.html" %}{% endfor %}</div>
+      </div>
+      {% else %}
+      <p class="tg-empty" style="color:#f87171">Brak zadań rozszerzonych 🔧</p>
+      {% endif %}
+    </div>
+
+    {% if not user %}
+    <div class="login-nudge" style="margin-top:32px">
+      <p><a href="{{ url_for('auth.login') }}">Zaloguj się</a>, żeby zapisać postępy!</p>
+    </div>
+    {% endif %}
+
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const TOPIC_COLOR    = "{{ color }}";
+const CHAPTER_ID     = "{{ ch.id }}";
+const TOPIC_NAME     = {{ topic | tojson }};
+const LOGGED_IN      = {{ 'true' if user else 'false' }};
+const DONE_TASK_IDS  = new Set({{ done_task_ids | tojson }});
+const CROWNS_BASE    = {{ crowns_base }};
+const CROWNS_EXT     = {{ crowns_ext }};
+let   cooldownBase   = {{ cooldown_base }};
+let   cooldownExt    = {{ cooldown_ext }};
+
+// ── global level (localStorage) ──────────────────────────────────────────────
+const LEVEL_KEY = "matma_level";
+let currentLevel = localStorage.getItem(LEVEL_KEY) || "base";
+
+function setLevel(level) {
+  currentLevel = level;
+  localStorage.setItem(LEVEL_KEY, level);
+  _applyLevel();
+}
+
+function _applyLevel() {
+  const isExt = currentLevel === "ext";
+
+  document.getElementById("btnBase").classList.toggle("ls-btn--active", !isExt);
+  document.getElementById("btnExt").classList.toggle("ls-btn--active",   isExt);
+
+  document.getElementById("groupBase").hidden       = isExt;
+  document.getElementById("groupExt").hidden        = !isExt;
+  document.getElementById("theoryBase").hidden      = isExt;
+  document.getElementById("theoryExt").hidden       = !isExt;
+  document.getElementById("videoPanelBase").hidden  = isExt;
+  document.getElementById("videoPanelExt").hidden   = !isExt;
+  document.getElementById("testLaunchBase").hidden  = isExt;
+  document.getElementById("testLaunchExt").hidden   = !isExt;
+
+  const body   = document.getElementById("topicBody");
+  const header = document.getElementById("topicHeader");
+  body.classList.toggle("topic-body--ext",   isExt);
+  header.classList.toggle("topic-header--ext", isExt);
+  document.getElementById("tasksHeading").style.color = isExt ? "#f87171" : "";
+
+  // update crowns display
+  renderCrowns(isExt ? CROWNS_EXT : CROWNS_BASE, isExt ? "#f87171" : TOPIC_COLOR);
+}
+
+function renderCrowns(count, color) {
+  const el = document.getElementById("topicCrowns");
+  el.innerHTML = [0,1,2].map(i =>
+    `<span class="topic-crown ${i < count ? 'topic-crown--lit' : ''}"
+      style="${i < count ? `filter:drop-shadow(0 0 8px ${color})` : ''}">${i < count ? `<span style="color:${color}">👑</span>` : '👑'}</span>`
+  ).join("");
+}
+
+// ── theory toggle ─────────────────────────────────────────────────────────────
+function toggleTheory(which) {
+  const body   = document.getElementById(`theory${which}Body`);
+  const toggle = document.getElementById(`theory${which}Toggle`);
+  body.hidden  = !body.hidden;
+  toggle.textContent = body.hidden ? "Rozwiń ▼" : "Zwiń ▲";
+}
+
+// ── cooldown timers ───────────────────────────────────────────────────────────
+function startCooldown(seconds, elId) {
+  let left = seconds;
+  const el = document.getElementById(elId);
+  if (!el) return;
+  (function tick() {
+    if (left <= 0) { location.reload(); return; }
+    const m = Math.floor(left/60).toString().padStart(2,"0");
+    const s = (left%60).toString().padStart(2,"0");
+    el.textContent = m+":"+s;
+    left--;
+    setTimeout(tick, 1000);
+  })();
+}
+if (cooldownBase > 0) startCooldown(cooldownBase, "cdBase");
+if (cooldownExt  > 0) startCooldown(cooldownExt,  "cdExt");
+
+// ── practice answers ──────────────────────────────────────────────────────────
+function submitAnswer(taskId, type) {
+  if (!LOGGED_IN) { window.location = "{{ url_for('auth.login') }}"; return; }
+  let answer;
+  if (type === "choice") {
+    const sel = document.querySelector(`input[name="choice_${taskId}"]:checked`);
+    if (!sel) { showFeedback(taskId, null, "Wybierz odpowiedź!"); return; }
+    answer = sel.value;
+  } else {
+    const inp = document.getElementById(`input_${taskId}`);
+    answer = inp ? inp.value.trim() : "";
+    if (!answer) { showFeedback(taskId, null, "Wpisz odpowiedź!"); return; }
+  }
+  fetch("/api/task/answer", {
+    method: "POST", headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ task_id: taskId, answer })
+  })
+  .then(r => r.json())
+  .then(data => {
+    showFeedback(taskId, data.correct, data.explanation);
+    if (data.correct) {
+      DONE_TASK_IDS.add(taskId);
+      markCardDone(taskId);
+      document.getElementById("topicDoneCount").textContent = data.done_count;
+      document.getElementById("topicProgressBar").style.width = data.pct + "%";
+    }
+  });
+}
+
+function showFeedback(taskId, correct, message) {
+  const box = document.getElementById(`feedback_${taskId}`);
+  if (!box) return;
+  if (correct === null) {
+    box.className = "task-feedback task-feedback--warn"; box.textContent = message;
+  } else if (correct) {
+    box.className = "task-feedback task-feedback--ok";
+    box.innerHTML = "✅ Dobrze! " + message;
+    document.getElementById(`taskcard_${taskId}`)
+      ?.querySelectorAll("input, button.task-submit-btn").forEach(el => el.disabled = true);
+  } else {
+    box.className = "task-feedback task-feedback--err";
+    box.innerHTML = "❌ Nie tym razem. " + message;
+  }
+  box.hidden = false;
+}
+
+function markCardDone(taskId) {
+  document.getElementById(`taskcard_${taskId}`)?.classList.add("task-card--done");
+}
+function toggleHint(taskId) {
+  const h = document.getElementById(`hint_${taskId}`);
+  if (h) h.hidden = !h.hidden;
+}
+
+// ── init ──────────────────────────────────────────────────────────────────────
+document.addEventListener("DOMContentLoaded", () => {
+  _applyLevel();
+  DONE_TASK_IDS.forEach(tid => markCardDone(tid));
+});
+</script>
+{% endblock %}

@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block title %}Twoja Mapa · Matematyczna Wolnosc{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <h1 class="page-header__title">
+      {% if user %}Twoja Mapa, {{ user['name'].split(' ')[0] }}
+      {% else %}Twoja Mapa{% endif %}
+    </h1>
+    <p class="page-header__sub">Sledz postepy, nastepne kroki i teorie do powtorzenia.</p>
+
+    <div class="overall-progress">
+      <div class="progress-bar-wrap progress-bar-wrap--lg">
+        <div class="progress-bar__fill"
+             style="width:{{ total_pct }}%; background: linear-gradient(90deg,#7c3aed,#ec4899)">
+        </div>
+      </div>
+      <div class="overall-progress__stats">
+        <span class="overall-progress__pct gradient-text">{{ total_pct }}% calosci</span>
+        <span class="overall-progress__detail">{{ total_done }} z {{ total_topics }} tematow ukonczonych</span>
+      </div>
+    </div>
+
+    <div class="learning-plan">
+      <div class="learning-plan__main">
+        <span class="learning-plan__label">Nastepny krok</span>
+        {% if plan.next_chapter %}
+        <h2>{{ plan.next_chapter.next_topic }}</h2>
+        <p>
+          Kontynuuj dzial <strong>{{ plan.next_chapter.label }}</strong>.
+          Zacznij od teorii, potem zrob przykladowe zadania i oznacz temat jako zrobiony.
+        </p>
+        <a href="{{ url_for('chapters.dzial', chapter_id=plan.next_chapter.id) }}" class="btn btn--primary btn--sm">
+          Przejdz do tematu
+        </a>
+        {% else %}
+        <h2>Wszystkie tematy ukonczone</h2>
+        <p>Swietna robota. Teraz najlepszym ruchem jest powtorka teorii i zadania mieszane.</p>
+        {% endif %}
+      </div>
+
+      <div class="learning-plan__side">
+        <span class="learning-plan__label">Szybka powtorka</span>
+        {% for item in plan.review_plan[:3] %}
+        <div class="review-item">
+          <strong>{{ item.topic }}</strong>
+          <small>{{ item.chapter.label }}</small>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<section class="section">
+  <div class="container">
+    <p class="section__label">Plan nauki</p>
+    <h2 class="section__title">Najblizsze kroki</h2>
+    <div class="steps-grid">
+      {% for ch in plan.next_steps %}
+      <a href="{{ url_for('chapters.dzial', chapter_id=ch.id) }}" class="step-card">
+        <span class="step-card__chapter" style="color:{{ ch.color }}">{{ ch.label }}</span>
+        <strong>{{ ch.next_topic }}</strong>
+        <p>{{ ch.done|length }} z {{ ch.topics|length }} tematow zrobione. Przejdz przez teorie i dwa przyklady.</p>
+      </a>
+      {% endfor %}
+    </div>
+
+    <div class="review-panel">
+      <h3>Teoria do powtorzenia</h3>
+      <div class="review-panel__grid">
+        {% for item in plan.review_plan %}
+        <div class="review-panel__item">
+          <span>{{ item.chapter.label }}</span>
+          <strong>{{ item.topic }}</strong>
+          <ul>
+            {% for point in item.points %}
+            <li>{{ point }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section section--dark2">
+  <div class="container">
+    <h2 class="section__title">Mapa polaczen</h2>
+    <div class="map-wrapper">
+      {% include "_map_board.html" %}
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <p class="section__label">Rozdzialy</p>
+    <h2 class="section__title">Postep w dzialach</h2>
+    <div class="cards-grid">
+      {% for ch in chapters %}
+      <a href="{{ url_for('chapters.dzial', chapter_id=ch.id) }}" class="card card--progress">
+        <div class="card__progress-stripe" style="width:{{ ch.pct }}%; background:{{ ch.color }}; height:6px"></div>
+        <div class="card__body">
+          <div class="card__progress-top">
+            <div class="card__emoji-title">
+              <span class="card__emoji">{{ ch.emoji }}</span>
+              <div>
+                <div class="card__title card__title--sm">{{ ch.label }}</div>
+                <div class="card__tag" style="color:{{ ch.color }}">{{ ch.tagline }}</div>
+              </div>
+            </div>
+            {% include "_ring.html" with context %}
+          </div>
+          <div class="card__meta">{{ ch.done|length }}/{{ ch.topics|length }} tematow · {{ ch.pct }}%</div>
+          {% if ch.next_topic %}
+          <div class="card__next">
+            <span>Nastepny temat</span>
+            <strong>{{ ch.next_topic }}</strong>
+          </div>
+          {% endif %}
+          {% if ch.review_topics %}
+          <div class="card__review-mini">
+            Powtorka:
+            {% for topic in ch.review_topics %}
+            <span>{{ topic }}</span>
+            {% endfor %}
+          </div>
+          {% endif %}
+          {% if ch.pct == 100 %}
+          <div class="card__badge" style="background:{{ ch.color }}25; color:{{ ch.color }}">
+            Ukonczone
+          </div>
+          {% endif %}
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+{% if not user %}
+<div class="container" style="padding: 40px 24px; text-align:center">
+  <div class="login-nudge login-nudge--big">
+    <p><a href="{{ url_for('auth.login') }}">Zaloguj sie</a>, zeby Twoje postepy byly zapisywane na serwerze!</p>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

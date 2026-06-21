@@ -1,0 +1,323 @@
+{% extends "base.html" %}
+{% block title %}Test: {{ topic }} · Matematyczna Wolność{% endblock %}
+
+{% block content %}
+{% set color = ch.color %}
+
+<!-- TEST HEADER -->
+<div class="test-header" style="--test-color: {{ color }}">
+  <div class="container">
+    <a href="{{ url_for('chapters.temat', chapter_id=ch.id, topic_slug=topic_slug) }}"
+       class="back-btn" id="backBtn">← Wróć do tematu</a>
+
+    <div class="test-header__row">
+      <div>
+        <div class="test-header__label">TEST · {{ "PODSTAWA" if level == "base" else "ROZSZERZENIE ☠️" }}</div>
+        <h1 class="test-header__title">{{ topic }}</h1>
+      </div>
+      <div class="test-timer-wrap">
+        <div class="test-timer" id="testTimer">3:00</div>
+        <div class="test-timer__label">czas na zadanie</div>
+      </div>
+    </div>
+
+    <!-- question progress dots -->
+    <div class="test-dots">
+      {% for t in tasks %}
+      <div class="test-dot" id="dot-{{ loop.index0 }}" onclick="goToQuestion({{ loop.index0 }})"></div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- COOLDOWN OVERLAY (if blocked) -->
+{% if cooldown > 0 %}
+<div class="overlay-block">
+  <div class="overlay-block__box">
+    <div style="font-size:3rem">⏳</div>
+    <h2>Test zablokowany</h2>
+    <p>Poczekaj <strong id="cooldownTimerBlock">--:--</strong> przed kolejną próbą.</p>
+    <a href="{{ url_for('chapters.temat', chapter_id=ch.id, topic_slug=topic_slug) }}"
+       class="test-btn test-btn--start" style="background:{{ color }}; margin-top:16px; display:inline-block">
+      Wróć do tematu
+    </a>
+  </div>
+</div>
+{% endif %}
+
+<!-- TEST BODY -->
+<section class="section" id="testSection">
+  <div class="container container--narrow">
+
+    {% for task in tasks %}
+    <div class="test-q {% if loop.first %}test-q--active{% endif %}"
+         id="q-{{ loop.index0 }}" data-idx="{{ loop.index0 }}" data-task-id="{{ task.id }}">
+
+      <div class="test-q__counter" style="color:{{ color }}">
+        Zadanie {{ loop.index }} / {{ total }}
+      </div>
+
+      <p class="test-q__question">{{ task.question }}</p>
+
+      {% if task.type == "choice" %}
+      <div class="test-q__choices">
+        {% for opt in task.choices %}
+        <label class="choice-opt" id="opt-{{ task.id }}-{{ opt.key }}">
+          <input type="radio" name="choice_{{ task.id }}" value="{{ opt.key }}">
+          <span class="choice-opt__key">{{ opt.key }}</span>
+          <span class="choice-opt__text">{{ opt.text }}</span>
+        </label>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="test-q__input-row">
+        <input type="text" class="task-input test-input"
+               id="testinput_{{ task.id }}"
+               placeholder="Twoja odpowiedź...">
+      </div>
+      {% endif %}
+
+      <div class="test-q__actions">
+        {% if not loop.last %}
+        <button class="test-next-btn" style="background:{{ color }}"
+                onclick="nextQuestion({{ loop.index0 }}, '{{ task.id }}', '{{ task.type }}')">
+          Następne →
+        </button>
+        {% else %}
+        <button class="test-next-btn test-next-btn--finish" style="background:{{ color }}"
+                onclick="finishTest('{{ task.id }}', '{{ task.type }}')">
+          Zakończ test ✓
+        </button>
+        {% endif %}
+        <div class="test-q__timer-bar-wrap">
+          <div class="test-q__timer-bar" id="tbar-{{ loop.index0 }}"
+               style="background: {{ color }}"></div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+
+    <!-- RESULT SCREEN (hidden initially) -->
+    <div class="test-result" id="testResult" hidden>
+      <div class="test-result__emoji" id="resultEmoji">🏆</div>
+      <h2 class="test-result__title" id="resultTitle">Świetnie!</h2>
+      <div class="test-result__score" id="resultScore"></div>
+      <div class="test-result__crowns" id="resultCrowns"></div>
+      <div class="test-result__breakdown" id="resultBreakdown"></div>
+      <div class="test-result__actions" id="resultActions"></div>
+    </div>
+
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const COLOR      = "{{ color }}";
+const LEVEL      = "{{ level }}";
+const CHAPTER_ID = "{{ ch.id }}";
+const TOPIC_SLUG = "{{ topic_slug }}";
+const TOTAL      = {{ total }};
+const TIMER_SECS = {{ timer_per_task }};
+let   cooldownLeft = {{ cooldown }};
+
+// answers collected
+const userAnswers = {};
+let   currentQ    = 0;
+let   timerLeft   = TIMER_SECS;
+let   timerHandle = null;
+
+// ── cooldown block ────────────────────────────────
+if (cooldownLeft > 0) {
+  const el = document.getElementById("cooldownTimerBlock");
+  function tickBlock() {
+    if (cooldownLeft <= 0) { location.reload(); return; }
+    const m = Math.floor(cooldownLeft/60).toString().padStart(2,"0");
+    const s = (cooldownLeft%60).toString().padStart(2,"0");
+    if (el) el.textContent = m+":"+s;
+    cooldownLeft--;
+    setTimeout(tickBlock, 1000);
+  }
+  tickBlock();
+}
+
+// ── per-question timer ────────────────────────────
+function startTimer() {
+  clearInterval(timerHandle);
+  timerLeft = TIMER_SECS;
+  updateTimerDisplay();
+  timerHandle = setInterval(() => {
+    timerLeft--;
+    updateTimerDisplay();
+    updateTimerBar();
+    if (timerLeft <= 0) {
+      clearInterval(timerHandle);
+      // auto-advance or finish
+      const q = document.querySelector(".test-q--active");
+      if (!q) return;
+      const idx    = parseInt(q.dataset.idx);
+      const taskId = q.dataset.taskId;
+      const type   = q.querySelector("input[type=radio]") ? "choice" : "input";
+      // record blank answer for this question
+      collectAnswer(taskId, type);
+      if (idx + 1 < TOTAL) nextQuestion(idx, taskId, type, true);
+      else finishTest(taskId, type, true);
+    }
+  }, 1000);
+}
+
+function updateTimerDisplay() {
+  const m = Math.floor(timerLeft/60).toString().padStart(2,"0");
+  const s = (timerLeft%60).toString().padStart(2,"0");
+  const el = document.getElementById("testTimer");
+  if (el) {
+    el.textContent = m+":"+s;
+    el.style.color = timerLeft <= 30 ? "#f87171" : COLOR;
+  }
+}
+
+function updateTimerBar() {
+  const bar = document.getElementById(`tbar-${currentQ}`);
+  if (bar) bar.style.width = (timerLeft / TIMER_SECS * 100) + "%";
+}
+
+// ── navigation ────────────────────────────────────
+function goToQuestion(idx) {
+  if (idx >= TOTAL) return;
+  const prev = document.querySelector(".test-q--active");
+  if (prev) prev.classList.remove("test-q--active");
+  const next = document.getElementById(`q-${idx}`);
+  if (next) next.classList.add("test-q--active");
+  currentQ = idx;
+  updateDots();
+  startTimer();
+}
+
+function collectAnswer(taskId, type) {
+  if (type === "choice") {
+    const sel = document.querySelector(`input[name="choice_${taskId}"]:checked`);
+    userAnswers[taskId] = sel ? sel.value : "";
+  } else {
+    const inp = document.getElementById(`testinput_${taskId}`);
+    userAnswers[taskId] = inp ? inp.value.trim() : "";
+  }
+}
+
+function nextQuestion(idx, taskId, type, forced=false) {
+  collectAnswer(taskId, type);
+  markDot(idx, "answered");
+  goToQuestion(idx + 1);
+}
+
+function finishTest(taskId, type, forced=false) {
+  collectAnswer(taskId, type);
+  markDot(currentQ, "answered");
+  clearInterval(timerHandle);
+  document.getElementById("backBtn").style.pointerEvents = "none";
+
+  fetch("/api/test/submit", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ answers: userAnswers })
+  })
+  .then(r => r.json())
+  .then(showResult);
+}
+
+// ── result screen ────────────────────────────────
+function showResult(data) {
+  // hide all questions
+  document.querySelectorAll(".test-q").forEach(q => q.hidden = true);
+  document.getElementById("testTimer").textContent = "–";
+
+  const screen = document.getElementById("testResult");
+  screen.hidden = false;
+
+  const emoji  = document.getElementById("resultEmoji");
+  const title  = document.getElementById("resultTitle");
+  const score  = document.getElementById("resultScore");
+  const crowns = document.getElementById("resultCrowns");
+  const bdown  = document.getElementById("resultBreakdown");
+  const acts   = document.getElementById("resultActions");
+
+  if (data.passed) {
+    emoji.textContent = data.crowns === 3 ? "🏆" : data.crowns === 2 ? "🥇" : "🎉";
+    title.textContent = data.crowns === 3 ? "Perfekcyjnie!" : data.crowns === 2 ? "Świetnie!" : "Zdałeś!";
+    title.style.color = COLOR;
+
+    let crownHtml = "";
+    for (let i = 0; i < 3; i++) {
+      crownHtml += `<span class="res-crown ${i < data.crowns ? 'res-crown--lit' : ''}"
+        style="${i < data.crowns ? `color:${COLOR}; filter:drop-shadow(0 0 10px ${COLOR})` : ''}">👑</span>`;
+    }
+    crowns.innerHTML = crownHtml;
+  } else {
+    emoji.textContent = "😞";
+    title.textContent = "Nie tym razem";
+    title.style.color = "#f87171";
+    score.innerHTML = `<span style="color:#f87171">${data.correct_count}/${data.total} poprawnych</span> — potrzebujesz min. 3`;
+
+    const m = Math.floor(data.cooldown / 60);
+    crowns.innerHTML = `<div class="res-cooldown">⏳ Następna próba za <strong>${m} minut</strong></div>`;
+  }
+
+  score.innerHTML = `<span style="color:${COLOR}">${data.correct_count}</span> / ${data.total} poprawnych`;
+
+  // breakdown
+  let bHtml = "<div class='res-breakdown'>";
+  data.results.forEach((r, i) => {
+    bHtml += `<div class="res-item ${r.correct ? 'res-item--ok' : 'res-item--err'}">
+      ${r.correct ? "✅" : "❌"} Zadanie ${i+1}
+    </div>`;
+  });
+  bHtml += "</div>";
+  bdown.innerHTML = bHtml;
+
+  // action buttons
+  const topicUrl = `/dzial/${CHAPTER_ID}/${TOPIC_SLUG}`;
+  const testUrl  = `/dzial/${CHAPTER_ID}/${TOPIC_SLUG}/test?level=${LEVEL}`;
+  acts.innerHTML = `
+    <a href="${topicUrl}" class="test-btn test-btn--start"
+       style="background:linear-gradient(135deg,${COLOR},#a78bfa)">
+      Wróć do tematu
+    </a>
+    ${data.passed ? `<a href="${testUrl}" class="test-btn test-btn--retry"
+       style="border-color:${COLOR}40; color:${COLOR}">
+      Powtórz test →
+    </a>` : (!data.passed && data.cooldown === 0) ? `<a href="${testUrl}" class="test-btn test-btn--start"
+       style="background:${COLOR}">Spróbuj ponownie</a>` : ""}
+  `;
+}
+
+// ── dots ─────────────────────────────────────────
+function updateDots() {
+  document.querySelectorAll(".test-dot").forEach((d, i) => {
+    d.classList.toggle("test-dot--active", i === currentQ);
+  });
+}
+
+function markDot(idx, state) {
+  const d = document.getElementById(`dot-${idx}`);
+  if (d) {
+    d.classList.remove("test-dot--active");
+    d.classList.add(state === "answered" ? "test-dot--answered" : "test-dot--skipped");
+    d.style.background = state === "answered" ? COLOR : "#6b7280";
+  }
+}
+
+// ── init ─────────────────────────────────────────
+document.addEventListener("DOMContentLoaded", () => {
+  if (cooldownLeft > 0) return;
+  updateDots();
+  // set first dot active color
+  const d0 = document.getElementById("dot-0");
+  if (d0) d0.style.borderColor = COLOR;
+  // init timer bars to full
+  for (let i = 0; i < TOTAL; i++) {
+    const bar = document.getElementById(`tbar-${i}`);
+    if (bar) bar.style.width = "100%";
+  }
+  startTimer();
+});
+</script>
+{% endblock %}

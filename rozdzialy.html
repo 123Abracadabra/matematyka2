@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Rozdziały · Matematyczna Wolność{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <h1 class="page-header__title">Wszystkie rozdziały 📚</h1>
+    <p class="page-header__sub">Wybierz dział i zacznij naukę we własnym tempie</p>
+  </div>
+</div>
+
+<section class="section">
+  <div class="container">
+    <div class="ch-grid">
+      {% for ch in chapters %}
+      <a href="{{ url_for('chapters.dzial', chapter_id=ch.id) }}" class="ch-card">
+        <!-- top color stripe -->
+        <div class="ch-card__stripe" style="background: {{ ch.color }}"></div>
+
+        <div class="ch-card__body">
+          <!-- header row -->
+          <div class="ch-card__head">
+            <span class="ch-card__emoji">{{ ch.emoji }}</span>
+            <div>
+              <span class="ch-card__tag" style="color:{{ ch.color }}">{{ ch.tagline }}</span>
+              <div class="ch-card__title">{{ ch.label }}</div>
+            </div>
+            <div class="ch-card__ring-wrap">
+              {% set pct = ch.pct %}
+              {% include "_ring.html" with context %}
+            </div>
+          </div>
+
+          <!-- topics list with understanding bars -->
+          <div class="ch-card__topics">
+            {% for topic in ch.topic_items %}
+            <div class="ch-topic {% if topic.done %}ch-topic--done{% endif %}">
+              <!-- mini understanding bar on the left -->
+              <div class="ch-topic__bar-wrap" title="Rozumienie: {{ topic.understanding }}%">
+                <div class="ch-topic__bar-fill"
+                     style="height: {{ topic.understanding }}%; background: {{ ch.color }}"></div>
+              </div>
+              <span class="ch-topic__name {% if topic.done %}ch-topic__name--done{% endif %}"
+                    style="{% if topic.done %}color: {{ ch.color }};{% endif %}">
+                {{ topic.name }}
+              </span>
+              {% if topic.done %}
+              <span class="ch-topic__check" style="color: {{ ch.color }}">✓</span>
+              {% endif %}
+            </div>
+            {% endfor %}
+          </div>
+
+          <div class="ch-card__meta">{{ ch.done|length }}/{{ ch.topics|length }} ukończone</div>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,53 @@
+{% set ROWS = 6 %}
+{% set COLS = 9 %}
+
+{% set pos_map = {} %}
+{% for ch in chapters %}
+  {% set _ = pos_map.update({ (ch.map_pos[0]|string + '_' + ch.map_pos[1]|string): ch }) %}
+{% endfor %}
+
+<div class="board" id="mapBoard">
+  <svg class="board__svg" id="boardSvg"></svg>
+  <table class="board__table">
+    <tbody>
+      {% for r in range(ROWS) %}
+      <tr>
+        {% for c in range(COLS) %}
+          {% set key = r|string + '_' + c|string %}
+          {% set ch = pos_map.get(key) %}
+          <td class="board__cell">
+            {% if ch %}
+            <a href="{{ url_for('chapters.dzial', chapter_id=ch.id) }}"
+               class="board__circle {% if loop.first and r == 1 %}board__circle--lg{% endif %} {% if ch.pct == 100 %}board__circle--done{% elif ch.pct > 0 %}board__circle--active{% endif %} {% if c <= 1 %}board__circle--tip-left{% elif c >= COLS - 2 %}board__circle--tip-right{% endif %} {% if r >= ROWS - 2 %}board__circle--tip-top{% endif %}"
+               data-chapter="{{ ch.id }}"
+               style="border-color:{{ ch.color }}; box-shadow: 0 0 18px {{ ch.glow }};"
+               id="circle-{{ ch.id }}">
+              <span class="board__emoji">{{ ch.emoji }}</span>
+              {% if ch.pct > 0 %}
+              <svg class="board__mini-ring" viewBox="0 0 22 22">
+                <circle cx="11" cy="11" r="8" fill="none" stroke="rgba(255,255,255,.15)" stroke-width="3"/>
+                <circle cx="11" cy="11" r="8" fill="none" stroke="{{ ch.color }}" stroke-width="3"
+                  stroke-linecap="round"
+                  stroke-dasharray="{{ (2 * 3.14159 * 8)|round(2) }}"
+                  stroke-dashoffset="{{ ((2 * 3.14159 * 8) * (1 - ch.pct / 100))|round(2) }}"
+                  transform="rotate(-90 11 11)"/>
+              </svg>
+              {% endif %}
+              <div class="board__tooltip">
+                <div class="board__tooltip-label" style="color:{{ ch.color }}">{{ ch.label }}</div>
+                <div class="board__tooltip-sub">{{ ch.done|length }}/{{ ch.topics|length }} tematow · {{ ch.pct }}%</div>
+                {% if ch.next_topic %}
+                <div class="board__tooltip-next">Dalej: {{ ch.next_topic }}</div>
+                {% else %}
+                <div class="board__tooltip-next">Gotowe - czas na powtorke</div>
+                {% endif %}
+              </div>
+            </a>
+            {% endif %}
+          </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

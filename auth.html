@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}{% if mode == 'login' %}Logowanie{% else %}Rejestracja{% endif %} · Matematyczna Wolność{% endblock %}
+
+{% block content %}
+<div class="auth-page">
+  <div class="blob blob--1"></div>
+  <div class="blob blob--2"></div>
+  <div class="auth-card">
+
+    <!-- tabs -->
+    <div class="auth-tabs">
+      <a href="{{ url_for('auth.login') }}"
+         class="auth-tab {% if mode == 'login' %}auth-tab--active{% endif %}">
+        Logowanie
+      </a>
+      <a href="{{ url_for('auth.rejestracja') }}"
+         class="auth-tab {% if mode == 'register' %}auth-tab--active{% endif %}">
+        Rejestracja
+      </a>
+    </div>
+
+    <h1 class="auth-card__title">
+      {% if mode == 'login' %}Witaj z powrotem! 👋{% else %}Dołącz do nas! 🚀{% endif %}
+    </h1>
+
+    {% if error %}
+    <div class="auth-error">⚠️ {{ error }}</div>
+    {% endif %}
+
+    <form method="POST" class="auth-form">
+      {% if mode == 'register' %}
+      <div class="form-group">
+        <label class="form-label">Twoje imię</label>
+        <input class="form-input" type="text" name="name" placeholder="np. Kasia" required
+               value="{{ request.form.get('name', '') }}">
+      </div>
+      {% endif %}
+
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input class="form-input" type="email" name="email" placeholder="adres@email.com" required
+               value="{{ request.form.get('email', '') }}">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Hasło</label>
+        <input class="form-input" type="password" name="password" placeholder="••••••••" required>
+      </div>
+
+      {% if mode == 'register' %}
+      <div class="form-group">
+        <label class="form-label">Powtórz hasło</label>
+        <input class="form-input" type="password" name="password2" placeholder="••••••••" required>
+      </div>
+      {% endif %}
+
+      <button type="submit" class="btn btn--primary btn--full">
+        {% if mode == 'login' %}Wchodzę! 🚀{% else %}Zakładam konto! 🎉{% endif %}
+      </button>
+    </form>
+
+    <p class="auth-card__switch">
+      {% if mode == 'login' %}
+        Nie masz konta? <a href="{{ url_for('auth.rejestracja') }}">Zarejestruj się</a>
+      {% else %}
+        Masz już konto? <a href="{{ url_for('auth.login') }}">Zaloguj się</a>
+      {% endif %}
+    </p>
+  </div>
+</div>
+{% endblock %}

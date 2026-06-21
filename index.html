@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block nav_class %}navbar--transparent{% endblock %}
+
+{% block content %}
+
+<!-- ── HERO ── -->
+<header class="hero">
+  <div class="blob blob--1"></div>
+  <div class="blob blob--2"></div>
+  <div class="container hero__inner">
+    <span class="eyebrow">Nauka matematyki</span>
+    <h1 class="hero__title">
+      Ucz się matematyki<br>
+      we <span class="gradient-text">własnym tempie</span>
+    </h1>
+    <p class="hero__sub">
+      Rozwijaj się i śledź swoje postępy krok po kroku —
+      od podstaw do zaawansowanych zagadnień.
+    </p>
+    <a href="{{ url_for('chapters.rozdzialy') }}" class="btn btn--primary btn--lg">Zacznijmy →</a>
+  </div>
+</header>
+
+<!-- ── MAP SECTION ── -->
+<section class="section section--dark2">
+  <div class="container">
+    <p class="section__label">Twoja mapa nauki</p>
+    <h2 class="section__title">Czego dziś się nauczymy?</h2>
+    <div class="map-wrapper">
+      {% include "_map_board.html" %}
+    </div>
+    <p class="map-hint">Najedź na kółko, aby zobaczyć dział · Kliknij, aby przejść do tematów</p>
+  </div>
+</section>
+
+<!-- ── CHAPTERS GRID ── -->
+<section class="section">
+  <div class="container">
+    <p class="section__label">Działy</p>
+    <h2 class="section__title">Wybierz co chcesz poznać</h2>
+    <div class="cards-grid">
+      {% for ch in chapters %}
+      <a href="{{ url_for('chapters.dzial', chapter_id=ch.id) }}" class="card">
+        <div class="card__header" style="background: {{ ch.gradient }}">
+          <span class="card__emoji">{{ ch.emoji }}</span>
+          {% if ch.pct > 0 %}
+          <div class="card__ring-wrap">
+            {% include "_ring.html" with context %}
+          </div>
+          {% endif %}
+        </div>
+        {% if ch.pct > 0 %}
+        <div class="card__progress-bar" style="width:{{ ch.pct }}%; background:{{ ch.color }}"></div>
+        {% endif %}
+        <div class="card__body">
+          <span class="card__tag" style="color:{{ ch.color }}">{{ ch.tagline }}</span>
+          <div class="card__title">{{ ch.label }}</div>
+          <div class="card__meta">{{ ch.topics|length }} tematów · {{ ch.pct }}% ukończone</div>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+{% endblock %}
